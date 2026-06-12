@@ -8,17 +8,17 @@ class PaymentService:
     """Service centralisé pour les paiements"""
     
     @staticmethod
-    def process_payment(user_id, amount, payment_method, currency='USD'):
+    def process_payment(user_id, amount, payment_method, bank_account=None, currency='USD'):
         """Traiter un paiement selon la méthode"""
         
         if payment_method == PaymentMethod.PAYPAL:
             return PayPalService.process_payment(user_id, amount, currency)
         
         elif payment_method == PaymentMethod.ORANGE_MONEY_RDC:
-            return OrangeMoneyService.process_payment(user_id, amount, currency)
+            return OrangeMoneyService.process_payment(user_id, amount, currency, bank_account)
         
         elif payment_method == PaymentMethod.VODACOM_RDC:
-            return VodacomService.process_payment(user_id, amount, currency)
+            return VodacomService.process_payment(user_id, amount, currency, bank_account)
         
         else:
             raise ValueError(f"Méthode de paiement non supportée: {payment_method}")
@@ -148,9 +148,10 @@ class OrangeMoneyService:
     API_KEY = os.getenv('ORANGE_MONEY_RDC_API_KEY')
     MERCHANT_KEY = os.getenv('ORANGE_MONEY_RDC_MERCHANT_KEY')
     SANDBOX = os.getenv('ORANGE_MONEY_RDC_SANDBOX', 'true').lower() == 'true'
+    PAYMENT_NUMBER = '0815376622'
     
     @staticmethod
-    def process_payment(user_id, amount, currency='USD'):
+    def process_payment(user_id, amount, currency='USD', bank_account=None):
         """Traiter un paiement Orange Money"""
         try:
             headers = {
@@ -165,7 +166,9 @@ class OrangeMoneyService:
                 'description': 'Premium Subscription',
                 'reference': f"WHATSAPP_BOT_{user_id}_{datetime.utcnow().timestamp()}",
                 'country': 'CD',
-                'sandbox': OrangeMoneyService.SANDBOX
+                'sandbox': OrangeMoneyService.SANDBOX,
+                'payment_number': OrangeMoneyService.PAYMENT_NUMBER,
+                'bank_account': bank_account
             }
             
             response = requests.post(
@@ -185,6 +188,8 @@ class OrangeMoneyService:
                     status=PaymentStatus.PENDING,
                     transaction_id=data.get('transaction_id'),
                     reference_id=data.get('reference'),
+                    payment_number=OrangeMoneyService.PAYMENT_NUMBER,
+                    bank_account=bank_account,
                     details=data
                 )
                 db.session.add(payment)
@@ -226,9 +231,10 @@ class VodacomService:
     API_KEY = os.getenv('VODACOM_RDC_API_KEY')
     MERCHANT_ID = os.getenv('VODACOM_RDC_MERCHANT_ID')
     SANDBOX = os.getenv('VODACOM_RDC_SANDBOX', 'true').lower() == 'true'
+    PAYMENT_NUMBER = '0815376622'
     
     @staticmethod
-    def process_payment(user_id, amount, currency='USD'):
+    def process_payment(user_id, amount, currency='USD', bank_account=None):
         """Traiter un paiement Vodacom"""
         try:
             headers = {
@@ -243,7 +249,9 @@ class VodacomService:
                 'reference': f"WHATSAPP_BOT_{user_id}_{datetime.utcnow().timestamp()}",
                 'description': 'Premium Subscription - WhatsApp Status Bot',
                 'country': 'CD',
-                'sandbox': VodacomService.SANDBOX
+                'sandbox': VodacomService.SANDBOX,
+                'payment_number': VodacomService.PAYMENT_NUMBER,
+                'bank_account': bank_account
             }
             
             response = requests.post(
@@ -263,6 +271,8 @@ class VodacomService:
                     status=PaymentStatus.PENDING,
                     transaction_id=data.get('transaction_id'),
                     reference_id=data.get('reference'),
+                    payment_number=VodacomService.PAYMENT_NUMBER,
+                    bank_account=bank_account,
                     details=data
                 )
                 db.session.add(payment)
